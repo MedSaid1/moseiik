@@ -440,22 +440,140 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use image::{RgbImage, Rgb};
+
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn unit_test_x86() {
-        // TODO
-        assert!(true);
+        let img1 = RgbImage::from_fn(7, 7, |x, y| image::Rgb([x as u8, y as u8, 0]));
+        let img2 = RgbImage::from_fn(7, 7, |x, y| image::Rgb([(x + 1) as u8, (y + 1) as u8, 0]));
+
+        // Calculer manuellement la distance L1
+        let mut expected_result: i32 = 0;
+        for y in 0..7 {
+            for x in 0..7 {
+                let pixel1 = [x as u8, y as u8, 0];
+                let pixel2 = [(x + 1) as u8, (y + 1) as u8, 0];
+
+                for channel in 0..3 {
+                    expected_result += (pixel1[channel] as i32 - pixel2[channel] as i32).abs();
+                }
+            }
+        }
+
+        // Appeler la fonction SIMD
+        unsafe {
+            let simd_result = l1_x86_sse2(&img1, &img2);
+
+            // Vérifier que le résultat SIMD correspond au résultat attendu
+            assert_eq!(
+                simd_result, expected_result,
+                "L1 SIMD result ({}) does not match the expected result ({})",
+                simd_result, expected_result
+            );
+        }
     }
 
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
-        assert!(true);
+        let img1 = RgbImage::from_fn(4, 4, |x, y| image::Rgb([x as u8, y as u8, 0]));
+        let img2 = RgbImage::from_fn(4, 4, |x, y| image::Rgb([(x + 1) as u8, (y + 1) as u8, 0]));
+
+        // Résultat attendu
+        let expected_result: i32 = 4 * 4 * (1 + 1); // Chaque pixel diffère de 1 sur les deux premiers canaux, aucun sur le troisième.
+
+        // Appeler la fonction SIMD
+        unsafe {
+            let simd_result = l1_neon(&img1, &img2);
+
+            // Vérifier que le résultat SIMD correspond au résultat attendu
+            assert_eq!(
+                simd_result, expected_result,
+                "L1 NEON result ({}) does not match the expected result ({})",
+                simd_result, expected_result
+            );
+        }
     }
 
     #[test]
     fn unit_test_generic() {
-        // TODO
-        assert!(true);
+        let mut img1 = RgbImage::new(2, 2);
+        let mut img2 = RgbImage::new(2, 2);
+
+        img1.put_pixel(0, 0, Rgb([10, 20, 30]));
+        img1.put_pixel(1, 0, Rgb([40, 50, 60]));
+        img1.put_pixel(0, 1, Rgb([70, 80, 90]));
+        img1.put_pixel(1, 1, Rgb([100, 110, 120]));
+
+        img2.put_pixel(0, 0, Rgb([5, 15, 25]));
+        img2.put_pixel(1, 0, Rgb([35, 45, 55]));
+        img2.put_pixel(0, 1, Rgb([65, 75, 85]));
+        img2.put_pixel(1, 1, Rgb([95, 105, 115]));
+
+        let expected_result = 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5;
+        let result = l1_generic(&img1, &img2);
+
+        assert_eq!(result, expected_result, "L1 distance (generic) is incorrect");
+    }
+
+    #[test]
+    fn unit_test_prepare_target() {
+        let tile_size = Size { width: 6, height: 6 };
+        let image_path = "test_image.png";
+        let scale = 2;
+
+        // Créer une image de test
+        let mut img = RgbImage::new(10, 10);
+        for x in 0..10 {
+            for y in 0..10 {
+                img.put_pixel(x, y, Rgb([x as u8, y as u8, (x + y) as u8]));
+            }
+        }
+        img.save(image_path).unwrap();
+
+        let prepared_target = prepare_target(image_path, scale, &tile_size).unwrap();
+
+        // Vérifier que la taille correspond à l'échelle
+        assert_eq!(prepared_target.width() % tile_size.width,0,"Prepared target width is not a multiple of tile size width");
+        assert_eq!(prepared_target.height() % tile_size.height,0,"Prepared target height is not a multiple of tile size height");
+        /*
+        assert_eq!(prepared_target.width(), 18);
+        assert_eq!(prepared_target.height(), 18);*/
+        // Supprimer le fichier de test
+        std::fs::remove_file(image_path).unwrap();
+    }
+
+    #[test]
+    fn unit_test_prepare_tiles() {
+        let tiles_folder = "test_tiles";
+        let tile_size = Size { width: 5, height: 5 };
+
+        // Créer un dossier de test et des images
+        std::fs::create_dir_all(tiles_folder).unwrap();
+        for i in 0..3 {
+            let mut img = RgbImage::new(10, 10);
+            for x in 0..10 {
+                for y in 0..10 {
+                    img.put_pixel(x, y, Rgb([x as u8, y as u8, i as u8]));
+                }
+            }
+            img.save(format!("{}/tile_{}.png", tiles_folder, i)).unwrap();
+        }
+
+        let prepared_tiles = prepare_tiles(tiles_folder, &tile_size, false).unwrap();
+
+        // Vérifier que le nombre de tuiles est correct
+        assert_eq!(prepared_tiles.len(), 3);
+
+        // Vérifier les dimensions des tuiles
+        for tile in prepared_tiles {
+            assert_eq!(tile.width(), tile_size.width);
+            assert_eq!(tile.height(), tile_size.height);
+        }
+
+        // Nettoyer
+        std::fs::remove_dir_all(tiles_folder).unwrap();
     }
 }
