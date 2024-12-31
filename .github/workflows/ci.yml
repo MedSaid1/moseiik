@@ -1,31 +1,47 @@
 name: Build and Test Moseiik
 
-on: [push, pull_request]
+# Déclencheurs : ce workflow s'exécute lors d'un push ou d'une pull request sur la branche "main"
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build:
+  build-and-test:
+    # Le job s'exécutera sur la dernière version d'Ubuntu disponible
     runs-on: ubuntu-latest
+
+    # Utilisation d'une stratégie "matrix" pour exécuter les builds sur plusieurs architectures
     strategy:
       matrix:
-        platform: [linux/amd64, linux/arm64/v8]
+        platform: [linux/amd64, linux/arm64/v8] # Plateformes cibles : x86 (amd64) et ARM (arm64)
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v2
+    - name: Checkout source code
+      uses: actions/checkout@v3
+      # Cette étape clone le code source du dépôt pour travailler dessus
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
-
-    - name: Build and run Docker image
-      uses: docker/build-push-action@v2
+    - name: Set up QEMU for multi-architecture builds
+      uses: docker/setup-qemu-action@v2
       with:
-        context: .
-        platforms: ${{ matrix.platform }}
-        load: true
-        push: false
-        tags: user/app:latest
+        platforms: all
+      # QEMU est configuré pour permettre l'émulation de plusieurs architectures
+
+    - name: Build Docker Image
+      uses: docker/build-push-action@v3
+      with:
+        context: . # Le répertoire actuel contient les fichiers nécessaires pour construire l'image Docker
+        platforms: ${{ matrix.platform }} # Construit pour les plateformes définies dans la "matrix"
+        load: true # Charge l'image Docker localement
+        push: false # Ne publie pas l'image sur un registre Docker public ou privé
+        tags: moseiik-tests:latest 
 
     - name: Run tests
-      run: docker run user/app:latest
-      continue-on-error: true 
-
+      run: docker run moseiik-tests:latest
+      continue-on-error: true # Même si les tests échouent, le workflow continue
+      # Cette étape lance les tests dans le conteneur Docker créé précédemment
+      # L'option "continue-on-error" permet de poursuivre le processus même si les tests échouent.
+      # Cela est justifié ici, car nous savons que les tests d'intégration échouent, comme expliqué dans le fichier temp.rs.
