@@ -474,15 +474,24 @@ mod tests {
             );
         }
     }
-
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
-        let img1 = RgbImage::from_fn(4, 4, |x, y| image::Rgb([x as u8, y as u8, 0]));
-        let img2 = RgbImage::from_fn(4, 4, |x, y| image::Rgb([(x + 1) as u8, (y + 1) as u8, 0]));
+        let img1 = RgbImage::from_fn(7, 7, |x, y| image::Rgb([x as u8, y as u8, 0]));
+        let img2 = RgbImage::from_fn(7, 7, |x, y| image::Rgb([(x + 1) as u8, (y + 1) as u8, 0]));
 
-        // Résultat attendu
-        let expected_result: i32 = 4 * 4 * (1 + 1); // Chaque pixel diffère de 1 sur les deux premiers canaux, aucun sur le troisième.
+        // Calculer manuellement la distance L1
+        let mut expected_result: i32 = 0;
+        for y in 0..7 {
+            for x in 0..7 {
+                let pixel1 = [x as u8, y as u8, 0];
+                let pixel2 = [(x + 1) as u8, (y + 1) as u8, 0];
+
+                for channel in 0..3 {
+                    expected_result += (pixel1[channel] as i32 - pixel2[channel] as i32).abs();
+                }
+            }
+        }
 
         // Appeler la fonction SIMD
         unsafe {
@@ -491,12 +500,12 @@ mod tests {
             // Vérifier que le résultat SIMD correspond au résultat attendu
             assert_eq!(
                 simd_result, expected_result,
-                "L1 NEON result ({}) does not match the expected result ({})",
+                "L1 SIMD result ({}) does not match the expected result ({})",
                 simd_result, expected_result
             );
         }
     }
-
+    
     #[test]
     fn unit_test_generic() {
         let mut img1 = RgbImage::new(2, 2);
