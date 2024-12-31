@@ -9,7 +9,7 @@
 # Étape 1 : Image de base compatible multi-architectures
 FROM rust:latest
 
-# Étape 2 : Installer des dépendances supplémentaires (si nécessaire)
+# Étape 2 : Installer des dépendances supplémentaires
 RUN apt-get update && apt-get install -y \
     libssl-dev \
     pkg-config \

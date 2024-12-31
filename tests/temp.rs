@@ -64,7 +64,7 @@ mod tests {
         let result = run_mosaic();
         assert!(
             result,
-            "Mosaic generation failed with SIMD on x86 or x86_64 architecture"
+            "Mosaic generation failed on x86 or x86_64 architecture"
         );
 
         // Comparer la sortie avec la vérité terrain
@@ -82,7 +82,7 @@ mod tests {
         let result = run_mosaic();
         assert!(
             result,
-            "Mosaic generation failed with SIMD on aarch64 architecture"
+            "Mosaic generation failed on aarch64 architecture"
         );
 
         // Comparer la sortie avec la vérité terrain
