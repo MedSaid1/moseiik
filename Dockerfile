@@ -1,3 +1,11 @@
+# Veuillez utiliser le script `docker.sh` pour simplifier le processus. commande: sudo ./docker.sh
+# Ce script :
+# - Installe QEMU
+# - Configure Docker Buildx pour les builds multi-architectures
+# - Construit deux images Docker (ARM64 et AMD64) localement (--load)
+# - Exécute les tests pour chaque architecture
+
+
 # Étape 1 : Image de base compatible multi-architectures
 FROM rust:latest
 
