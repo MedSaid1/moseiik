@@ -443,13 +443,16 @@ mod tests {
     use super::*;
     use image::{RgbImage, Rgb};
 
+    //Pour exécuter ces tests avec cargo, veuillez lancer la commande ./test.bash
+
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn unit_test_x86() {
+        // Création de deux images 7x7 avec des valeurs RGB différentes pour tester l'implémentation SIMD sur x86/x86_64
         let img1 = RgbImage::from_fn(7, 7, |x, y| image::Rgb([x as u8, y as u8, 0]));
         let img2 = RgbImage::from_fn(7, 7, |x, y| image::Rgb([(x + 1) as u8, (y + 1) as u8, 0]));
 
-        // Calculer manuellement la distance L1
+        // Calcul manuel du résultat attendu (somme des différences absolues entre les pixels)
         let mut expected_result: i32 = 0;
         for y in 0..7 {
             for x in 0..7 {
@@ -462,11 +465,11 @@ mod tests {
             }
         }
 
-        // Appeler la fonction SIMD
+        // Appel de la fonction SIMD optimisée
         unsafe {
             let simd_result = l1_x86_sse2(&img1, &img2);
 
-            // Vérifier que le résultat SIMD correspond au résultat attendu
+            // Vérification que le résultat SIMD correspond au résultat attendu
             assert_eq!(
                 simd_result, expected_result,
                 "L1 SIMD result ({}) does not match the expected result ({})",
@@ -474,9 +477,11 @@ mod tests {
             );
         }
     }
+
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
+        // Même test que pour x86, mais adapté à ARM (architecture aarch64)
         let img1 = RgbImage::from_fn(7, 7, |x, y| image::Rgb([x as u8, y as u8, 0]));
         let img2 = RgbImage::from_fn(7, 7, |x, y| image::Rgb([(x + 1) as u8, (y + 1) as u8, 0]));
 
@@ -493,11 +498,10 @@ mod tests {
             }
         }
 
-        // Appeler la fonction SIMD
         unsafe {
             let simd_result = l1_neon(&img1, &img2);
 
-            // Vérifier que le résultat SIMD correspond au résultat attendu
+            // Vérification que le résultat SIMD correspond au résultat attendu
             assert_eq!(
                 simd_result, expected_result,
                 "L1 SIMD result ({}) does not match the expected result ({})",
@@ -505,9 +509,10 @@ mod tests {
             );
         }
     }
-    
+
     #[test]
     fn unit_test_generic() {
+        // Test générique pour vérifier la distance L1 entre deux petites images 2x2
         let mut img1 = RgbImage::new(2, 2);
         let mut img2 = RgbImage::new(2, 2);
 
@@ -521,14 +526,16 @@ mod tests {
         img2.put_pixel(0, 1, Rgb([65, 75, 85]));
         img2.put_pixel(1, 1, Rgb([95, 105, 115]));
 
-        let expected_result = 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5;
+        let expected_result = 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5; // Différences absolues sommées
         let result = l1_generic(&img1, &img2);
 
+        // Vérification du résultat générique
         assert_eq!(result, expected_result, "L1 distance (generic) is incorrect");
     }
 
     #[test]
     fn unit_test_prepare_target() {
+        // Prépare une cible avec une image et vérifie qu'elle est correctement redimensionnée
         let tile_size = Size { width: 6, height: 6 };
         let image_path = "test_image.png";
         let scale = 2;
@@ -547,15 +554,13 @@ mod tests {
         // Vérifier que la taille correspond à l'échelle
         assert_eq!(prepared_target.width() % tile_size.width,0,"Prepared target width is not a multiple of tile size width");
         assert_eq!(prepared_target.height() % tile_size.height,0,"Prepared target height is not a multiple of tile size height");
-        /*
-        assert_eq!(prepared_target.width(), 18);
-        assert_eq!(prepared_target.height(), 18);*/
-        // Supprimer le fichier de test
+
         std::fs::remove_file(image_path).unwrap();
     }
 
     #[test]
     fn unit_test_prepare_tiles() {
+        // Prépare des tuiles à partir d'images et vérifie les dimensions
         let tiles_folder = "test_tiles";
         let tile_size = Size { width: 5, height: 5 };
 
